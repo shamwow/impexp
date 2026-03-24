@@ -73,8 +73,29 @@ import_npm() {
         fi
 
         if command -v nvm &>/dev/null 2>&1 || type nvm &>/dev/null 2>&1; then
+            local all_versions=()
+            while IFS= read -r line; do all_versions+=("$line"); done < "$src/nvm-versions.txt"
+
+            # Filter out Node versions < 16 on Apple Silicon (no arm64 binaries, source build fails)
             local versions=()
-            while IFS= read -r line; do versions+=("$line"); done < "$src/nvm-versions.txt"
+            local skipped=()
+            local is_arm64=false
+            [[ "$(uname -m)" == "arm64" ]] && is_arm64=true
+            for ver in "${all_versions[@]}"; do
+                [[ -z "$ver" ]] && continue
+                local major
+                major="$(echo "$ver" | grep -oE '[0-9]+' | head -1)"
+                if [[ "$is_arm64" == true ]] && [[ "$major" -lt 16 ]]; then
+                    skipped+=("$ver")
+                else
+                    versions+=("$ver")
+                fi
+            done
+
+            if [[ ${#skipped[@]} -gt 0 ]]; then
+                log_warn "Skipping ${#skipped[@]} Node versions incompatible with Apple Silicon: ${skipped[*]}"
+            fi
+
             if [[ ${#versions[@]} -gt 0 ]] && ask_yes_no "Install ${#versions[@]} Node versions via nvm?" "y"; then
                 for ver in "${versions[@]}"; do
                     [[ -z "$ver" ]] && continue

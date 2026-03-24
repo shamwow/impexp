@@ -45,13 +45,23 @@ export_golang() {
     # Export go version for reference
     go version 2>/dev/null > "$dest/go-version.txt" || true
 
-    # Export $GOPATH/bin contents
+    # Export $GOPATH/bin contents with their module paths
     local gopath_bin="${GOPATH:-$HOME/go}/bin"
     if [[ -d "$gopath_bin" ]] && [[ "$(ls -A "$gopath_bin" 2>/dev/null)" ]]; then
-        ls "$gopath_bin" > "$dest/go-binaries.txt"
-        local bin_count
-        bin_count="$(wc -l < "$dest/go-binaries.txt" | tr -d ' ')"
-        log_success "Exported $bin_count Go binary names from \$GOPATH/bin"
+        local bin_count=0
+        > "$dest/go-install-paths.txt"
+        for bin in "$gopath_bin"/*; do
+            [[ ! -f "$bin" ]] && continue
+            local mod_path
+            mod_path="$(go version -m "$bin" 2>/dev/null | grep -E '^\s+path' | awk '{print $2}' || true)"
+            if [[ -n "$mod_path" ]]; then
+                echo "$mod_path" >> "$dest/go-install-paths.txt"
+                ((bin_count++))
+            fi
+        done
+        if [[ $bin_count -gt 0 ]]; then
+            log_success "Exported $bin_count Go tools with install paths"
+        fi
     fi
 
     rm -f "$dest/gvm-versions-raw.txt"
@@ -101,13 +111,20 @@ import_golang() {
         log_success "Set default Go version to $default_ver"
     fi
 
-    # Print go binaries for manual install
-    if [[ -f "$src/go-binaries.txt" ]]; then
-        echo
-        log_info "The following Go binaries were in \$GOPATH/bin:"
-        cat "$src/go-binaries.txt"
-        echo
-        log_info "Install them manually with 'go install <package>@latest'"
+    # Install Go tools
+    if [[ -f "$src/go-install-paths.txt" ]]; then
+        local tools=()
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && tools+=("$line")
+        done < "$src/go-install-paths.txt"
+
+        if [[ ${#tools[@]} -gt 0 ]] && ask_yes_no "Install ${#tools[@]} Go tools?" "y"; then
+            for tool in "${tools[@]}"; do
+                log_info "Installing $tool..."
+                go install "$tool@latest" 2>/dev/null || log_warn "Failed to install $tool"
+            done
+            log_success "Go tools installed"
+        fi
     fi
 
     return 0

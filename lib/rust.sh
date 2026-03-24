@@ -1,58 +1,41 @@
 #!/usr/bin/env bash
-# rust.sh — Export/import Rust version (via rsvm) and cargo-installed crates
+# rust.sh — Export/import Rust toolchain and cargo-installed crates
+# Uses rustup for installation (rsvm on the source machine wraps rustup internally)
 
-_source_rsvm() {
-    set +eu
-    if [[ -s "$HOME/.rsvm/current/cargo/env" ]]; then
-        source "$HOME/.rsvm/current/cargo/env" 2>/dev/null
-    fi
-    # Check if rsvm command is available
-    if [[ -s "$HOME/.rsvm/rsvm.sh" ]]; then
-        source "$HOME/.rsvm/rsvm.sh" 2>/dev/null
-        set -eu
-        return 0
-    fi
-    set -eu
-    # Fallback: check if rsvm is on PATH
-    command -v rsvm &>/dev/null && return 0
-    return 1
+_ensure_cargo_on_path() {
+    # Try multiple known cargo/env locations
+    local env_files=(
+        "$HOME/.rsvm/current/cargo/env"
+        "$HOME/.cargo/env"
+    )
+    for env_file in "${env_files[@]}"; do
+        if [[ -s "$env_file" ]]; then
+            set +eu
+            source "$env_file" 2>/dev/null
+            set -eu
+        fi
+    done
+    command -v cargo &>/dev/null
 }
 
 export_rust() {
     local dest="$1/rust"
     mkdir -p "$dest"
 
+    _ensure_cargo_on_path || true
+
     # Export Rust version info
-    local found_rust=false
-    if command -v rustc &>/dev/null; then
-        rustc --version > "$dest/rust-version.txt"
-        log_success "Exported Rust version: $(cat "$dest/rust-version.txt")"
-        found_rust=true
-    fi
-
-    # Export rsvm metadata
-    if [[ -f "$HOME/.rsvm/.rsvm_version" ]]; then
-        cp "$HOME/.rsvm/.rsvm_version" "$dest/rsvm-meta-version.txt"
-    fi
-
-    if [[ "$found_rust" == false ]]; then
+    if ! command -v rustc &>/dev/null; then
         log_warn "No Rust installation found"
         return 1
     fi
 
-    # List installed rsvm versions
-    if [[ -d "$HOME/.rsvm/versions" ]]; then
-        ls "$HOME/.rsvm/versions" 2>/dev/null | grep -E '^[0-9]' > "$dest/rsvm-installed-versions.txt" || true
-        local count
-        count="$(wc -l < "$dest/rsvm-installed-versions.txt" | tr -d ' ')"
-        if [[ $count -gt 0 ]]; then
-            log_success "Exported $count installed Rust versions"
-        fi
-    fi
+    rustc --version > "$dest/rust-version.txt"
+    log_success "Exported Rust version: $(cat "$dest/rust-version.txt")"
 
-    # Also list rustup toolchains (rsvm may use rustup internally)
-    if [[ -d "$HOME/.rsvm/current/rustup/toolchains" ]]; then
-        ls "$HOME/.rsvm/current/rustup/toolchains" 2>/dev/null > "$dest/rustup-toolchains.txt" || true
+    # Export rustup toolchains
+    if command -v rustup &>/dev/null; then
+        rustup toolchain list > "$dest/rustup-toolchains.txt" 2>/dev/null || true
         local tc_count
         tc_count="$(wc -l < "$dest/rustup-toolchains.txt" | tr -d ' ')"
         if [[ $tc_count -gt 0 ]]; then
@@ -63,7 +46,7 @@ export_rust() {
     # Export cargo installed crates
     if command -v cargo &>/dev/null; then
         cargo install --list > "$dest/cargo-install-list.txt" 2>/dev/null || true
-        # Parse crate names (lines without leading whitespace that end with ':')
+        # Parse crate names (lines without leading whitespace, before the version)
         grep -E '^[a-zA-Z]' "$dest/cargo-install-list.txt" | sed 's/ .*//' > "$dest/cargo-crates.txt" || true
         local crate_count
         crate_count="$(wc -l < "$dest/cargo-crates.txt" | tr -d ' ')"
@@ -82,37 +65,49 @@ import_rust() {
         return 1
     fi
 
-    # Install rsvm if needed
-    if ! _source_rsvm && ! command -v rsvm &>/dev/null; then
-        log_warn "rsvm not installed"
-        if ask_yes_no "Install rsvm?" "y"; then
-            curl -L https://raw.githubusercontent.com/aspect-build/rsvm/master/install.sh | bash
-            _source_rsvm || log_warn "Could not source rsvm after install"
+    # Try to get cargo on PATH from existing install
+    _ensure_cargo_on_path || true
+
+    # Install Rust via rustup if needed
+    if ! command -v rustc &>/dev/null && ! command -v cargo &>/dev/null; then
+        log_warn "Rust not installed"
+        if ask_yes_no "Install Rust via rustup?" "y"; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            # Source the newly installed cargo env
+            if [[ -s "$HOME/.cargo/env" ]]; then
+                set +eu
+                source "$HOME/.cargo/env" 2>/dev/null
+                set -eu
+            fi
+            if command -v rustc &>/dev/null; then
+                log_success "Rust installed: $(rustc --version)"
+            else
+                log_error "Rust installation failed"
+                return 1
+            fi
         else
             log_info "Skipping Rust import"
             return 1
         fi
     fi
 
-    # Install Rust versions via rsvm
-    if [[ -f "$src/rsvm-installed-versions.txt" ]]; then
-        local versions=()
-        while IFS= read -r line; do versions+=("$line"); done < "$src/rsvm-installed-versions.txt"
-        if [[ ${#versions[@]} -gt 0 ]] && ask_yes_no "Install ${#versions[@]} Rust versions via rsvm?" "y"; then
-            for ver in "${versions[@]}"; do
-                [[ -z "$ver" ]] && continue
-                log_info "Installing Rust $ver..."
-                rsvm install "$ver" 2>/dev/null || log_warn "Failed to install $ver"
+    # Install additional toolchains
+    if [[ -f "$src/rustup-toolchains.txt" ]] && command -v rustup &>/dev/null; then
+        local toolchains=()
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            # Strip " (default)" suffix and whitespace
+            local tc
+            tc="$(echo "$line" | sed 's/ (default)//' | tr -d ' ')"
+            toolchains+=("$tc")
+        done < "$src/rustup-toolchains.txt"
+
+        if [[ ${#toolchains[@]} -gt 0 ]] && ask_yes_no "Install ${#toolchains[@]} rustup toolchains?" "y"; then
+            for tc in "${toolchains[@]}"; do
+                log_info "Installing toolchain $tc..."
+                rustup toolchain install "$tc" 2>/dev/null || log_warn "Failed to install $tc"
             done
         fi
-    fi
-
-    # Set default version
-    if [[ -f "$src/rsvm-version.txt" ]]; then
-        local default_ver
-        default_ver="$(cat "$src/rsvm-version.txt")"
-        rsvm use "$default_ver" 2>/dev/null || log_warn "Failed to set Rust version: $default_ver"
-        log_success "Set Rust version to $default_ver"
     fi
 
     # Install cargo crates
@@ -122,11 +117,10 @@ import_rust() {
             return 0
         fi
 
-        # Filter out local-path installs (lines containing '/')
+        # Filter out local-path installs
         local crates=()
         while IFS= read -r crate; do
             [[ -z "$crate" ]] && continue
-            # Skip entries that look like local paths
             grep -q "$crate.*path:" "$src/cargo-install-list.txt" 2>/dev/null && continue
             crates+=("$crate")
         done < "$src/cargo-crates.txt"
