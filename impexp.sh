@@ -3,22 +3,26 @@ set -euo pipefail
 
 IMPEXP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXPORT_BASE="$IMPEXP_DIR/exports"
+IMPEXP_YES=false
 
 # shellcheck source=lib/common.sh
 source "$IMPEXP_DIR/lib/common.sh"
 
-ALL_MODULES=(shell git vscode jetbrains homebrew npm golang rust python)
+ALL_MODULES=(shell git ohmyzsh iterm vscode jetbrains homebrew npm golang rust python)
 
 trap 'log_error "Unexpected error at line $LINENO"; exit 1' ERR
 
 usage() {
-    echo "Usage: impexp.sh <command>"
+    echo "Usage: impexp.sh [--yes|-y] <command> [args]"
     echo
     echo "Commands:"
     echo "  export    Export dev environment to a snapshot"
     echo "  import    Import dev environment from a snapshot"
     echo "  list      List available snapshots"
     echo "  help      Show this help"
+    echo
+    echo "Options:"
+    echo "  -y, --yes   Auto-accept all prompts"
 }
 
 cmd_export() {
@@ -163,6 +167,19 @@ cmd_list() {
         echo
     done
 }
+
+# Parse global flags
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -y|--yes)
+            IMPEXP_YES=true
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
 # Main
 case "${1:-help}" in

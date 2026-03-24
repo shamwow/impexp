@@ -26,6 +26,10 @@ ask_yes_no() {
     local hint="[Y/n]"
     [[ "$default" == "n" ]] && hint="[y/N]"
 
+    if [[ "${IMPEXP_YES:-false}" == true ]]; then
+        return 0
+    fi
+
     if [[ ! -t 0 ]]; then
         [[ "$default" == "y" ]] && return 0 || return 1
     fi
@@ -56,8 +60,9 @@ ask_modules() {
     echo "  a) All"
     echo
 
-    if [[ ! -t 0 ]]; then
+    if [[ "${IMPEXP_YES:-false}" == true ]] || [[ ! -t 0 ]]; then
         SELECTED_MODULES=("${modules[@]}")
+        log_info "Auto-selecting all modules"
         return
     fi
 

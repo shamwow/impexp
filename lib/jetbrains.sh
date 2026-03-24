@@ -42,7 +42,9 @@ export_jetbrains() {
     echo
 
     local selected=()
-    if [[ -t 0 ]]; then
+    if [[ "${IMPEXP_YES:-false}" == true ]]; then
+        selected=("${products[@]}")
+    elif [[ -t 0 ]]; then
         echo -en "${BOLD}Select products to export (comma-separated, or 'a'):${NC} "
         read -r selection
         if [[ "$selection" == "a" || "$selection" == "A" || -z "$selection" ]]; then
