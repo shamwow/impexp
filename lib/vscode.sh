@@ -69,7 +69,7 @@ import_vscode() {
     if [[ -f "$src/extensions.txt" ]]; then
         if ! command -v code &>/dev/null; then
             log_warn "'code' CLI not found — cannot install extensions"
-            log_info "Extensions list saved at: $src/extensions.txt"
+            log_info "Install VSCode, then run: while read ext; do code --install-extension \"\$ext\"; done < $src/extensions.txt"
             return 0
         fi
 

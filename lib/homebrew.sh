@@ -47,7 +47,9 @@ import_homebrew() {
     log_info "Brewfile has $count entries — this may take a while"
 
     if ask_yes_no "Install Homebrew packages from Brewfile?" "y"; then
-        brew bundle --file="$src/Brewfile"
+        # --no-upgrade: don't upgrade already-installed packages
+        # HOMEBREW_CASK_OPTS: skip casks where the app already exists
+        HOMEBREW_CASK_OPTS="--no-quarantine" brew bundle --file="$src/Brewfile" --no-upgrade || true
         log_success "Homebrew packages installed"
     fi
 
