@@ -96,8 +96,8 @@ import_rust() {
 
     # Install Rust versions via rsvm
     if [[ -f "$src/rsvm-installed-versions.txt" ]]; then
-        local versions
-        mapfile -t versions < "$src/rsvm-installed-versions.txt"
+        local versions=()
+        while IFS= read -r line; do versions+=("$line"); done < "$src/rsvm-installed-versions.txt"
         if [[ ${#versions[@]} -gt 0 ]] && ask_yes_no "Install ${#versions[@]} Rust versions via rsvm?" "y"; then
             for ver in "${versions[@]}"; do
                 [[ -z "$ver" ]] && continue

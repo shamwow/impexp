@@ -78,8 +78,8 @@ import_golang() {
 
     # Install Go versions
     if [[ -f "$src/gvm-versions.txt" ]]; then
-        local versions
-        mapfile -t versions < "$src/gvm-versions.txt"
+        local versions=()
+        while IFS= read -r line; do versions+=("$line"); done < "$src/gvm-versions.txt"
         if [[ ${#versions[@]} -gt 0 ]] && ask_yes_no "Install ${#versions[@]} Go versions via GVM?" "y"; then
             for ver in "${versions[@]}"; do
                 [[ -z "$ver" ]] && continue

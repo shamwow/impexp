@@ -73,8 +73,8 @@ import_npm() {
         fi
 
         if command -v nvm &>/dev/null 2>&1 || type nvm &>/dev/null 2>&1; then
-            local versions
-            mapfile -t versions < "$src/nvm-versions.txt"
+            local versions=()
+            while IFS= read -r line; do versions+=("$line"); done < "$src/nvm-versions.txt"
             if [[ ${#versions[@]} -gt 0 ]] && ask_yes_no "Install ${#versions[@]} Node versions via nvm?" "y"; then
                 for ver in "${versions[@]}"; do
                     [[ -z "$ver" ]] && continue
@@ -104,8 +104,8 @@ import_npm() {
             return 1
         fi
 
-        local packages
-        mapfile -t packages < "$src/global-packages.txt"
+        local packages=()
+        while IFS= read -r line; do packages+=("$line"); done < "$src/global-packages.txt"
         local count=${#packages[@]}
         if [[ $count -gt 0 ]] && ask_yes_no "Install $count global npm packages?" "y"; then
             for pkg in "${packages[@]}"; do
