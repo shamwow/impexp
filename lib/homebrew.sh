@@ -11,6 +11,11 @@ export_homebrew() {
     fi
 
     if brew bundle dump --file="$dest/Brewfile" --force 2>/dev/null; then
+        # Remove deprecated taps that cause errors on import
+        sed -i '' '/^tap "homebrew\/bundle"/d' "$dest/Brewfile"
+        sed -i '' '/^tap "homebrew\/cask"/d' "$dest/Brewfile"
+        sed -i '' '/^tap "homebrew\/core"/d' "$dest/Brewfile"
+
         local taps brews casks
         taps="$(grep -c '^tap ' "$dest/Brewfile" 2>/dev/null || echo 0)"
         brews="$(grep -c '^brew ' "$dest/Brewfile" 2>/dev/null || echo 0)"
