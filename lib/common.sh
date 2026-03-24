@@ -35,9 +35,9 @@ ask_yes_no() {
         read -r -n 1 answer
         echo
         answer="${answer:-$default}"
-        case "${answer,,}" in
-            y) return 0 ;;
-            n) return 1 ;;
+        case "$answer" in
+            [yY]) return 0 ;;
+            [nN]) return 1 ;;
             *) echo "Please answer y or n." ;;
         esac
     done
