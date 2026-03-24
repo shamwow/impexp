@@ -168,27 +168,25 @@ cmd_list() {
     done
 }
 
-# Parse global flags
+# Parse all args: extract flags from any position, preserve positional order
+POSITIONAL=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -y|--yes)
-            IMPEXP_YES=true
-            shift
-            ;;
-        *)
-            break
-            ;;
+        -y|--yes)  IMPEXP_YES=true ;;
+        -h|--help) POSITIONAL+=("help") ;;
+        *)         POSITIONAL+=("$1") ;;
     esac
+    shift
 done
 
 # Main
-case "${1:-help}" in
+case "${POSITIONAL[0]:-help}" in
     export)  cmd_export ;;
-    import)  shift; cmd_import "$@" ;;
+    import)  cmd_import "${POSITIONAL[1]:-}" ;;
     list)    cmd_list ;;
-    help|--help|-h) usage ;;
+    help)    usage ;;
     *)
-        log_error "Unknown command: $1"
+        log_error "Unknown command: ${POSITIONAL[0]}"
         usage
         exit 1
         ;;

@@ -11,7 +11,14 @@ export_shell() {
     for name in "${SHELL_FILES[@]}"; do
         local src="$HOME/.$name"
         if [[ -f "$src" ]]; then
-            cp "$src" "$dest/$name"
+            # Replace hardcoded home path with $HOME for portability,
+            # and guard bare source/dot commands with existence checks
+            sed "s|$HOME|\$HOME|g" "$src" \
+                | sed -E 's/^(\. +"(.+)")$/[ -f "\2" ] \&\& \1/' \
+                | sed -E 's/^(\. +([^ ]+))$/[ -f "\2" ] \&\& \1/' \
+                | sed -E 's/^(source +"(.+)")$/[ -f "\2" ] \&\& \1/' \
+                | sed -E 's/^(source +([^ ]+))$/[ -f "\2" ] \&\& \1/' \
+                > "$dest/$name"
             log_success "Exported $src"
             ((found++))
         fi
