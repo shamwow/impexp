@@ -33,6 +33,7 @@ Export and import your macOS dev environment onto another machine.
 | **ohmyzsh** | Custom plugins, themes, and `.zsh` files from `~/.oh-my-zsh/custom/`; records `plugins=` and `ZSH_THEME=` from `.zshrc` | Installs oh-my-zsh if missing, restores custom content |
 | **iterm** | iTerm2 preferences plist (converted to XML), DynamicProfiles, Scripts | Restores prefs and profiles; restart iTerm2 after |
 | **vscode** | `settings.json`, `keybindings.json`, `snippets/`, installed extensions list | Restores settings, installs extensions via `code --install-extension` |
+| **cursor** | `~/Library/Application Support/Cursor/User/`: `settings.json`, `keybindings.json`, `snippets/`, installed extensions list | Restores User settings, installs extensions via `cursor --install-extension` (requires the Cursor shell command) |
 | **jetbrains** | Per-product `options/`, `keymaps/`, `codestyles/`, `colors/` dirs + plugin list (GoLand, PyCharm, CLion, RustRover, etc.) | Restores to matching product dir; suggests nearest version if exact match not found; prints plugins for manual install |
 | **homebrew** | `Brewfile` via `brew bundle dump` (deprecated taps are stripped automatically) | Installs Homebrew if missing, then `brew bundle` to install all formulae and casks |
 | **npm** | Global npm packages list, nvm-managed Node versions + default alias | Installs nvm if missing, installs Node versions (skips <v16 on Apple Silicon), installs global packages |

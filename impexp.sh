@@ -8,7 +8,7 @@ IMPEXP_YES=false
 # shellcheck source=lib/common.sh
 source "$IMPEXP_DIR/lib/common.sh"
 
-ALL_MODULES=(shell git ohmyzsh iterm vscode jetbrains homebrew npm golang rust python)
+ALL_MODULES=(shell git ohmyzsh iterm vscode cursor jetbrains homebrew npm golang rust python)
 
 trap 'log_error "Unexpected error at line $LINENO"; exit 1' ERR
 
